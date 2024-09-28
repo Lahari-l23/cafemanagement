@@ -1,8 +1,10 @@
-#include<stdio.h>
-#include<stdlib.h>
-#include<string.h>
-#include<stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdbool.h>
+#include <conio.h> // Include for Windows getch()
 
+// Structs for menu items and order history
 struct Item {
     char name[50];
     float rating;
@@ -11,12 +13,6 @@ struct Item {
     struct Item *next;
     struct Item *prev;
 };
-
-int cust_id = 1;
-struct Item* head;
-struct Item* last;
-int Today_custmer = 0;
-float total_income = 0;
 
 struct order_hist {
     int Customer_id;
@@ -27,12 +23,94 @@ struct order_hist {
     struct order_hist *prev;
 };
 
-struct order_hist *head1;
-struct order_hist* last1;
+// Global variables
+int cust_id = 1;
+struct Item* head = NULL;
+struct Item* last = NULL;
+int Today_custmer = 0;
+float total_income = 0;
+struct order_hist* head1 = NULL;
+struct order_hist* last1 = NULL;
 
-struct Item *getnewNode(char a[], float p, int fin) {
+// Function declarations
+void insert(char n[], float p, int fin);
+struct order_hist* getnewNode_hist();
+void saveMenuToFile();
+void saveOrderHistoryToFile();
+void loadMenuFromFile();
+void loadOrderHistoryFromFile();
+
+// Function to save menu to file
+void saveMenuToFile() {
+    FILE *file = fopen("menu.txt", "w");
+    if (!file) {
+        printf("Error opening file to save menu.\n");
+        return;
+    }
+    struct Item* temp = head;
+    while (temp != NULL) {
+        fprintf(file, "%s %.2f %d\n", temp->name, temp->price, temp->food_Id_No);
+        temp = temp->next;
+    }
+    fclose(file);
+}
+
+// Function to save order history to file
+void saveOrderHistoryToFile() {
+    FILE *file = fopen("order_history.txt", "a");
+    if (!file) {
+        printf("Error opening file to save order history.\n");
+        return;
+    }
+    struct order_hist* temp = head1;
+    while (temp != NULL) {
+        fprintf(file, "%d %s %.2f\n", temp->Customer_id, temp->date, temp->amount);
+        temp = temp->next;
+    }
+    fclose(file);
+}
+
+// Function to load menu from file
+void loadMenuFromFile() {
+    FILE *file = fopen("menu.txt", "r");
+    if (!file) {
+        printf("No menu found. Starting fresh.\n");
+        return;
+    }
+    char name[50];
+    float price;
+    int food_Id_No;
+    while (fscanf(file, "%s %f %d", name, &price, &food_Id_No) == 3) {
+        insert(name, price, food_Id_No);
+    }
+    fclose(file);
+}
+
+// Function to load order history from file
+void loadOrderHistoryFromFile() {
+    FILE *file = fopen("order_history.txt", "r");
+    if (!file) {
+        printf("No order history found.\n");
+        return;
+    }
+    struct order_hist* temp;
+    while (!feof(file)) {
+        temp = getnewNode_hist();
+        fscanf(file, "%d %s %f", &temp->Customer_id, temp->date, &temp->amount);
+        if (head1 == NULL) {
+            head1 = last1 = temp;
+        } else {
+            last1->next = temp;
+            temp->prev = last1;
+            last1 = temp;
+        }
+    }
+    fclose(file);
+}
+
+// Function to create a new menu item node
+struct Item* getnewNode(char a[], float p, int fin) {
     struct Item* temp = (struct Item*)malloc(sizeof(struct Item));
-
     temp->food_Id_No = fin;
     strcpy(temp->name, a);
     temp->rating = 4.0;
@@ -42,6 +120,7 @@ struct Item *getnewNode(char a[], float p, int fin) {
     return temp;
 }
 
+// Function to insert a new item into the menu
 void insert(char n[], float p, int fin) {
     struct Item* temp1 = getnewNode(n, p, fin);
     if (head == NULL) {
@@ -52,14 +131,17 @@ void insert(char n[], float p, int fin) {
         last->next = temp1;
         last = temp1;
     }
+    saveMenuToFile();
 }
 
+// Function to create a new order history node
 struct order_hist* getnewNode_hist() {
     struct order_hist* temp = (struct order_hist*)malloc(sizeof(struct order_hist));
     temp->next = temp->prev = NULL;
     return temp;
 }
 
+// Function to display the menu
 void Display() {
     printf("                         --------                                       \n");
     printf("---------------------------MENU-----------------------------------------\n");
@@ -70,12 +152,13 @@ void Display() {
         printf("\nEmpty");
     }
     while (temp != NULL) {
-        printf("%d\t%s\t%f\t%f\n", temp->food_Id_No, temp->name, temp->price, temp->rating);
+        printf("%d\t%s\t%.2f\t%.2f\n", temp->food_Id_No, temp->name, temp->price, temp->rating);
         temp = temp->next;
     }
     printf("-------------------------------------------------------------------------\n");
 }
 
+// Function for user login
 int login() {
     char username[20];
     char userpwd[11];
@@ -92,7 +175,7 @@ int login() {
     userpwd[i] = '\0';
 
     if (!strcmp(username, "ML") && !strcmp(userpwd, "1234")) {
-        printf("\n\nLogged In Successful\n");
+        printf("\n\nLogged In Successfully\n");
         return 1;
     } else {
         printf("\n\nIncorrect username or password\n");
@@ -100,6 +183,7 @@ int login() {
     }
 }
 
+// Function to process an order
 void order() {
     int a[10][2];
     int n, j = 0, i = 0;
@@ -117,21 +201,20 @@ void order() {
     char name[25];
     char Date[11];
     printf("\nEnter your Name: ");
-    scanf("%s", name);int d=0,m=0,y=0;
+    scanf("%s", name);
+
     int d, m, y;
     bool valid_date;
     do {
-        valid_date = 1; 
+        valid_date = true;
         printf("Enter the date (DD MM YYYY): ");
         scanf("%d %d %d", &d, &m, &y);
-
-        // Check for valid date range
         if (d < 1 || d > 31 || m < 1 || m > 12 || y < 0) {
             printf("Invalid date! Please enter a valid date.\n");
-            valid_date = 2;
+            valid_date = false;
         }
+    } while (!valid_date);
 
-    } while (!valid_date); 
     sprintf(Date, "%02d/%02d/%04d", d, m, y);
     int k = 0;
     printf("\n-----------------------------------------------------------\n");
@@ -141,15 +224,19 @@ void order() {
 
     for (k = 0; k < j; k++) {
         struct Item* temp = head;
-        while (temp->food_Id_No != a[k][0]) {
+        while (temp != NULL && temp->food_Id_No != a[k][0]) {
             temp = temp->next;
         }
-        printf("----------------------------------------------------------\n");
-        printf("%d\t%s\t%d\t\t%f\n", temp->food_Id_No, temp->name, a[k][1], (a[k][1] * (temp->price)));
-        total_amount += (a[k][1] * (temp->price));
+        if (temp) {
+            printf("----------------------------------------------------------\n");
+            printf("%d\t%s\t%d\t\t%.2f\n", temp->food_Id_No, temp->name, a[k][1], (a[k][1] * (temp->price)));
+            total_amount += (a[k][1] * (temp->price));
+        } else {
+            printf("Food ID %d not found!\n", a[k][0]);
+        }
     }
     printf("-----------------------------------------------------------\n");
-    printf("\nTotal Payable amount is: %f\n", total_amount);
+    printf("\nTotal Payable amount is: %.2f\n", total_amount);
     printf("-----------------------------------------------------------\n");
 
     struct order_hist* temp2 = getnewNode_hist();
@@ -172,11 +259,14 @@ void order() {
     }
 
     strcpy(temp2->date, Date);
-
     Today_custmer++;
     total_income += total_amount;
+
+    // Save order history to file
+    saveOrderHistoryToFile();
 }
 
+// Function to display order history
 void display_rd_hist() {
     printf("\n------------------------------ORDER HISTORY-----------------------------------\n");
     printf("\nSR_NO             DATE           TOTAL AMOUNT\n");
@@ -194,18 +284,13 @@ void display_rd_hist() {
 int main() {
     head = NULL;
     last = NULL;
-    insert("Burger   ", 70.23, 1);
-    insert("Pizza    ", 235.67, 2);
-    insert("Hot Cake ", 750.83, 3);
-    insert("Coffee   ", 70.23, 4);
-    insert("Ice-Cream ", 70.23,5);
-    insert("Sandwich  ", 60.23,6);
-    insert("Grill     ", 52.29,7);
-    insert("Nun-Bread ", 35.13, 8);
-    insert("Cold Drinks", 20.13, 9);
+
+    // Load menu and order history from files
+    loadMenuFromFile();
+    loadOrderHistoryFromFile();
 
     int choice;
-    do {
+    outer: { do {
         printf("\n---------------------------------------");
         printf("\n1. FOOD PART");
         printf("\n2. ADMIN PANEL");
@@ -218,17 +303,19 @@ int main() {
                 int ex;
                 do {
                     printf("\n1. FOOD LIST\n2. ORDER\n");
+                    printf("\nEnter your choice: ");
                     int n;
                     scanf("%d", &n);
-                    switch(n) {
+                    switch (n) {
                         case 1:
                             Display();
                             break;
                         case 2:
-                            order(); 
+                            order();
                             break;
                     }
                     printf("1. FOOD PART\n2. MAIN MENU\n");
+                    printf("\nEnter your choice: ");
                     scanf("%d", &ex);
                 } while (ex == 1);
                 break;
@@ -244,28 +331,24 @@ int main() {
                         printf("3. TODAY TOTAL NO OF CUSTOMER\n");
                         printf("4. ORDER HISTORY\n");
                         printf("5. LIST OF ITEM\n");
-                        printf("6. TO GO TO MAIN MENU\n");
+                        printf("6. GO TO MAIN MENU\n");
                         printf("\nEnter your choice: ");
                         int ch;
                         scanf("%d", &ch);
-                        switch(ch) {
+                        switch (ch) {
                             case 1:
                                 printf("\n");
                                 float p;
                                 int fin;
                                 char n[50];
 
-                                printf("Enter the name of Item: "); 
+                                printf("Enter the name of Item: ");
                                 scanf("%s", n);
-
-                                printf("Enter the Price of Item: "); 
+                                printf("Enter the Price of Item: ");
                                 scanf("%f", &p);
-
-                                printf("Enter the food_id_no of Item: "); 
+                                printf("Enter the food_id_no of Item: ");
                                 scanf("%d", &fin);
-
                                 insert(n, p, fin);
-
                                 printf("\n---------------------------------------\n");
                                 printf("     NEW DISH IS ADDED SUCCESSFULLY      \n");
                                 printf("-----------------------------------------\n");
@@ -297,14 +380,14 @@ int main() {
                                 Display();
                                 break;
                             case 6:
-                                 printf("\n");
-                                 order();
-                                     
+                                printf("\n");
+                                goto outer;
                         }
                     } while (1);
                 }
                 break;
         }
     } while (choice != 3);
+    }
     return 0;
 }
